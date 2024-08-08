@@ -1,15 +1,9 @@
-// #[macro_use]
-// extern crate rbatis;
-
-use salvo::prelude::*;
-
+mod module;
 mod utils;
-use utils::{config::config, db::init_mysql};
 
-#[handler]
-async fn hello() -> String {
-  return String::from("Hello world");
-}
+use module::router::init_router;
+use salvo::{conn::TcpListener, Listener, Server};
+use utils::{config::config, db::init_mysql};
 
 #[tokio::main]
 async fn main() {
@@ -24,7 +18,7 @@ async fn main() {
   )
   .await;
 
-  let router = Router::new().get(hello);
+  let router = init_router();
   let listen_addr = format!("{}:{}", config.server.host, config.server.port);
   let acceptor = TcpListener::new(listen_addr).bind().await;
   let server = Server::new(acceptor);
