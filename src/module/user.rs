@@ -39,16 +39,16 @@ crud!(User {});
 /// `success` 或 `error`
 ///
 #[handler]
-async fn register(req: &mut Request, res: &mut Response) {
+async fn register(request: &mut Request, response: &mut Response) {
   tracing::info!("Received a request to register a user.",);
-  match req.parse_json::<User>().await {
+  match request.parse_json::<User>().await {
     Ok(user) => {
-      let query = User::select_by_column(&db.clone(), "account", &user.account).await;
-      match query {
-        Ok(query) => {
-          if query.len() > 0 {
+      let dbres = User::select_by_column(&db.clone(), "account", &user.account).await;
+      match dbres {
+        Ok(dbres) => {
+          if dbres.len() > 0 {
             tracing::info!("Duplicate account found.");
-            res.render(Res::error("duplicate account"));
+            response.render(Res::error("duplicate account"));
           } else {
             let mut user = user;
             user.avatar = Some(String::from("http://127.0.0.1:8001/null"));
@@ -58,24 +58,24 @@ async fn register(req: &mut Request, res: &mut Response) {
             match dbinfo {
               Ok(dbinfo) => {
                 tracing::info!("{}", dbinfo);
-                res.render(Res::success());
+                response.render(Res::success());
               }
               Err(e) => {
                 tracing::error!("{:?}", e);
-                res.render(Res::error("database insertion failed"));
+                response.render(Res::error("database insertion failed"));
               }
             }
           }
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          res.render(Res::error("database query failed"));
+          response.render(Res::error("database dbres failed"));
         }
       }
     }
     Err(e) => {
       tracing::error!("{:?}", e);
-      res.render(Res::error("json pharse failed"));
+      response.render(Res::error("json pharse failed"));
     }
   }
 }
@@ -94,35 +94,35 @@ async fn register(req: &mut Request, res: &mut Response) {
 /// `success` 或 `error`, 成功响应的`data`中包含`User`结构体的所有信息
 ///
 #[handler]
-async fn login(req: &mut Request, res: &mut Response) {
+async fn login(request: &mut Request, response: &mut Response) {
   tracing::info!("Received a request to login.",);
-  match req.parse_json::<User>().await {
+  match request.parse_json::<User>().await {
     Ok(user) => {
-      let query = User::select_by_column(&db.clone(), "account", &user.account).await;
-      match query {
-        Ok(query) => {
-          if query.len() == 0 {
+      let dbres = User::select_by_column(&db.clone(), "account", &user.account).await;
+      match dbres {
+        Ok(dbres) => {
+          if dbres.len() == 0 {
             tracing::info!("Account not found.");
-            res.render(Res::error("account not found"));
+            response.render(Res::error("account not found"));
           } else {
-            if user.password != query[0].password {
+            if user.password != dbres[0].password {
               tracing::info!("Wrong password.");
-              res.render(Res::error("wrong password"));
+              response.render(Res::error("wrong password"));
             } else {
-              tracing::info!("User {} login successfully.", &query[0].id.unwrap());
-              res.render(Res::success_data(to_json(&query[0])));
+              tracing::info!("User {} login successfully.", &dbres[0].id.unwrap());
+              response.render(Res::success_data(to_json(&dbres[0])));
             }
           }
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          res.render(Res::error("database query failed"));
+          response.render(Res::error("database dbres failed"));
         }
       }
     }
     Err(e) => {
       tracing::error!("{:?}", e);
-      res.render(Res::error("json pharse failed"));
+      response.render(Res::error("json pharse failed"));
     }
   }
 }
@@ -141,18 +141,18 @@ async fn login(req: &mut Request, res: &mut Response) {
 /// `success` 或 `error`
 ///
 #[handler]
-async fn update(req: &mut Request, res: &mut Response) {
+async fn update(request: &mut Request, response: &mut Response) {
   tracing::info!("Received a request to login.",);
-  match req.parse_json::<User>().await {
+  match request.parse_json::<User>().await {
     Ok(user) => {
-      let query = User::select_by_column(&db.clone(), "id", &user.id).await;
-      match query {
-        Ok(query) => {
-          if query.len() == 0 {
+      let dbres = User::select_by_column(&db.clone(), "id", &user.id).await;
+      match dbres {
+        Ok(dbres) => {
+          if dbres.len() == 0 {
             tracing::info!("User not found.");
-            res.render(Res::error("user not found"));
+            response.render(Res::error("user not found"));
           } else {
-            let mut new_user = query[0].clone();
+            let mut new_user = dbres[0].clone();
             if let Some(avatar) = user.avatar {
               new_user.avatar = Some(avatar);
             }
@@ -172,24 +172,24 @@ async fn update(req: &mut Request, res: &mut Response) {
             match dbinfo {
               Ok(dbinfo) => {
                 tracing::info!("{}", dbinfo);
-                res.render(Res::success());
+                response.render(Res::success());
               }
               Err(e) => {
                 tracing::error!("{:?}", e);
-                res.render(Res::error("database insertion failed"));
+                response.render(Res::error("database insertion failed"));
               }
             }
           }
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          res.render(Res::error("database query failed"));
+          response.render(Res::error("database dbres failed"));
         }
       }
     }
     Err(e) => {
       tracing::error!("{:?}", e);
-      res.render(Res::error("json pharse failed"));
+      response.render(Res::error("json pharse failed"));
     }
   }
 }
