@@ -11,6 +11,7 @@ pub fn init_router() -> Router {
     .push(Router::with_path("register").post(register))
     .push(Router::with_path("login").post(login))
     .push(Router::with_path("update").post(update))
+    .push(Router::with_path("query").post(query))
 }
 
 /// 用户结构体
@@ -179,6 +180,47 @@ async fn update(request: &mut Request, response: &mut Response) {
                 response.render(Res::error("database insertion failed"));
               }
             }
+          }
+        }
+        Err(e) => {
+          tracing::error!("{:?}", e);
+          response.render(Res::error("database dbres failed"));
+        }
+      }
+    }
+    Err(e) => {
+      tracing::error!("{:?}", e);
+      response.render(Res::error("json pharse failed"));
+    }
+  }
+}
+
+/// 用户查询
+///
+/// # 前端请求格式
+/// ```json
+/// {
+///   id: ... //要查询的用户id
+/// }
+/// ```
+///
+/// # 后端响应格式
+/// `success` 或 `error`, 成功响应的`data`中包含`User`结构体的所有信息
+///
+#[handler]
+async fn query(request: &mut Request, response: &mut Response) {
+  tracing::info!("Received a request to query.",);
+  match request.parse_json::<User>().await {
+    Ok(user) => {
+      let dbres = User::select_by_column(&db.clone(), "id", &user.id).await;
+      match dbres {
+        Ok(dbres) => {
+          if dbres.len() == 0 {
+            tracing::info!("User not found.");
+            response.render(Res::error("user not found"));
+          } else {
+            tracing::info!("Query successfully.");
+            response.render(Res::success_data(to_json(&dbres[0])));
           }
         }
         Err(e) => {
