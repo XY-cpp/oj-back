@@ -1,8 +1,9 @@
 use rbatis::{crud, rbdc::datetime::DateTime};
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::api::front::{to_json, Res};
+use crate::api::front::Res;
 use crate::utils::db::db;
 
 /// 对外路由接口
@@ -70,7 +71,7 @@ async fn register(request: &mut Request, response: &mut Response) {
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          response.render(Res::error("database dbres failed"));
+          response.render(Res::error("database query failed"));
         }
       }
     }
@@ -111,13 +112,13 @@ async fn login(request: &mut Request, response: &mut Response) {
               response.render(Res::error("wrong password"));
             } else {
               tracing::info!("User {} login successfully.", &dbres[0].id.unwrap());
-              response.render(Res::success_data(to_json(&dbres[0])));
+              response.render(Res::success_data(json!(&dbres[0])));
             }
           }
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          response.render(Res::error("database dbres failed"));
+          response.render(Res::error("database query failed"));
         }
       }
     }
@@ -143,7 +144,7 @@ async fn login(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
-  tracing::info!("Received a request to login.",);
+  tracing::info!("Received a request to update a user.",);
   match request.parse_json::<User>().await {
     Ok(user) => {
       let dbres = User::select_by_column(&db.clone(), "id", &user.id).await;
@@ -184,7 +185,7 @@ async fn update(request: &mut Request, response: &mut Response) {
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          response.render(Res::error("database dbres failed"));
+          response.render(Res::error("database query failed"));
         }
       }
     }
@@ -220,12 +221,12 @@ async fn query(request: &mut Request, response: &mut Response) {
             response.render(Res::error("user not found"));
           } else {
             tracing::info!("Query successfully.");
-            response.render(Res::success_data(to_json(&dbres[0])));
+            response.render(Res::success_data(json!(&dbres[0])));
           }
         }
         Err(e) => {
           tracing::error!("{:?}", e);
-          response.render(Res::error("database dbres failed"));
+          response.render(Res::error("database query failed"));
         }
       }
     }

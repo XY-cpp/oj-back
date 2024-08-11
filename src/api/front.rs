@@ -2,10 +2,6 @@ use salvo::writing::Json;
 use serde::Serialize;
 use serde_json::Value;
 
-pub fn to_json<T: Serialize>(data: &T) -> Value {
-  serde_json::to_value(data).unwrap()
-}
-
 #[derive(Serialize, Default)]
 pub struct Res {
   pub status: Option<String>,
