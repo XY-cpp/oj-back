@@ -10,21 +10,25 @@
 
 前端请求格式：
 
-```json
+```json5
 {
-    data: { // 传输的数据
-        ...
+    "data" {
+        "id": 1
+        // ...
     }
 }
 ```
 
 后端发送格式：
-```json
+```json5
 {
-    status: "success" // or "error"
-    message: ... // 额外说明的信息
-    data: {
-        ... // 传输的数据
+    "status": "success", // or "error"
+    "message": "login successfully", // 额外说明的信息，一般success留空，error具体说明
+    "data": {
+        "id": 1
+        // ...
     }
 }
 ```
+
+具体的请求信息和返回信息见`module`目录下的文件内的注释
