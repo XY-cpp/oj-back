@@ -13,6 +13,7 @@ pub fn init_router() -> Router {
     .push(Router::with_path("login").post(login))
     .push(Router::with_path("update").post(update))
     .push(Router::with_path("query").post(query))
+    .push(Router::with_path("delete").post(delete))
 }
 
 /// 用户结构体
@@ -223,6 +224,42 @@ async fn query(request: &mut Request, response: &mut Response) {
             tracing::info!("Query successfully.");
             response.render(Res::success_data(json!(&dbres[0])));
           }
+        }
+        Err(e) => {
+          tracing::error!("{:?}", e);
+          response.render(Res::error("database query failed"));
+        }
+      }
+    }
+    Err(e) => {
+      tracing::error!("{:?}", e);
+      response.render(Res::error("json pharse failed"));
+    }
+  }
+}
+
+/// 用户删除
+///
+/// # 前端请求格式
+/// ```json
+/// {
+///   id: ... //要查询的用户id
+/// }
+/// ```
+///
+/// # 后端响应格式
+/// `success` 或 `error`
+///
+#[handler]
+async fn delete(request: &mut Request, response: &mut Response) {
+  tracing::info!("Received a request to delete user.",);
+  match request.parse_json::<User>().await {
+    Ok(user) => {
+      let dbinfo = User::delete_by_column(&db.clone(), "id", &user.id).await;
+      match dbinfo {
+        Ok(_) => {
+          tracing::info!("Delete user {} successfully", &user.id.unwrap());
+          response.render(Res::success());
         }
         Err(e) => {
           tracing::error!("{:?}", e);
