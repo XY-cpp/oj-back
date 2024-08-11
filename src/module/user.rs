@@ -30,6 +30,9 @@ crud!(User {});
 
 /// 用户注册
 ///
+/// # 前端请求地址
+/// `/user/register`
+///
 /// # 前端请求格式
 /// ```json
 /// {
@@ -85,6 +88,9 @@ async fn register(request: &mut Request, response: &mut Response) {
 
 /// 用户登录
 ///
+/// # 前端请求地址
+/// `/user/login`
+///
 /// # 前端请求格式
 /// ```json
 /// {
@@ -131,6 +137,9 @@ async fn login(request: &mut Request, response: &mut Response) {
 }
 
 /// 用户修改
+///
+/// # 前端请求地址
+/// `/user/update`
 ///
 /// # 前端请求格式
 /// ```json
@@ -199,6 +208,9 @@ async fn update(request: &mut Request, response: &mut Response) {
 
 /// 用户查询
 ///
+/// # 前端请求地址
+/// `/user/query`
+///
 /// # 前端请求格式
 /// ```json
 /// {
@@ -239,6 +251,9 @@ async fn query(request: &mut Request, response: &mut Response) {
 }
 
 /// 用户删除
+///
+/// # 前端请求地址
+/// `/user/delete`
 ///
 /// # 前端请求格式
 /// ```json
