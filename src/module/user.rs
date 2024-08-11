@@ -10,6 +10,7 @@ pub fn init_router() -> Router {
   Router::with_path("user")
     .push(Router::with_path("register").post(register))
     .push(Router::with_path("login").post(login))
+    .push(Router::with_path("update").post(update))
 }
 
 /// 用户结构体
@@ -108,8 +109,75 @@ async fn login(req: &mut Request, res: &mut Response) {
               tracing::info!("Wrong password.");
               res.render(Res::error("wrong password"));
             } else {
-              tracing::info!("Login successfully.");
+              tracing::info!("User {} login successfully.", &query[0].id.unwrap());
               res.render(Res::success_data(to_json(&query[0])));
+            }
+          }
+        }
+        Err(e) => {
+          tracing::error!("{:?}", e);
+          res.render(Res::error("database query failed"));
+        }
+      }
+    }
+    Err(e) => {
+      tracing::error!("{:?}", e);
+      res.render(Res::error("json pharse failed"));
+    }
+  }
+}
+
+/// 用户修改
+///
+/// # 前端请求格式
+/// ```json
+/// {
+///   id: ... //要修改的用户id
+///   ......  //要修改的用户数据
+/// }
+/// ```
+///
+/// # 后端响应格式
+/// `success` 或 `error`
+///
+#[handler]
+async fn update(req: &mut Request, res: &mut Response) {
+  tracing::info!("Received a request to login.",);
+  match req.parse_json::<User>().await {
+    Ok(user) => {
+      let query = User::select_by_column(&db.clone(), "id", &user.id).await;
+      match query {
+        Ok(query) => {
+          if query.len() == 0 {
+            tracing::info!("User not found.");
+            res.render(Res::error("user not found"));
+          } else {
+            let mut new_user = query[0].clone();
+            if let Some(avatar) = user.avatar {
+              new_user.avatar = Some(avatar);
+            }
+            if let Some(account) = user.account {
+              new_user.account = Some(account);
+            }
+            if let Some(password) = user.password {
+              new_user.password = Some(password);
+            }
+            if let Some(join_time) = user.join_time {
+              new_user.join_time = Some(join_time);
+            }
+            if let Some(authority) = user.authority {
+              new_user.authority = Some(authority);
+            }
+            let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await;
+            match dbinfo {
+              Ok(dbinfo) => {
+                tracing::info!("{}", dbinfo);
+                res.render(Res::success());
+              }
+              Err(e) => {
+                tracing::error!("{:?}", e);
+                res.render(Res::error("database insertion failed"));
+              }
             }
           }
         }
