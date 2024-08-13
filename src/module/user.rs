@@ -1,9 +1,11 @@
 use rbatis::{crud, rbdc::datetime::DateTime};
+use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::api::front::Res;
+use crate::utils::authority::{check_authority, Authority, Jwt};
 use crate::utils::db::db;
 
 /// 对外路由接口
@@ -24,7 +26,7 @@ struct User {
   account: Option<String>,
   password: Option<String>,
   join_time: Option<DateTime>,
-  authority: Option<i32>,
+  auth: Option<Authority>,
 }
 crud!(User {});
 
@@ -59,7 +61,7 @@ async fn register(request: &mut Request, response: &mut Response) {
             let mut user = user;
             user.avatar = Some(String::from("http://127.0.0.1:8001/null"));
             user.join_time = Some(DateTime::now());
-            user.authority = Some(3);
+            user.auth = Some(Authority::User);
             let dbinfo = User::insert(&db.clone(), &user).await;
             match dbinfo {
               Ok(dbinfo) => {
@@ -118,8 +120,24 @@ async fn login(request: &mut Request, response: &mut Response) {
               tracing::info!("Wrong password.");
               response.render(Res::error("wrong password"));
             } else {
-              tracing::info!("User {} login successfully.", &dbres[0].id.unwrap());
-              response.render(Res::success_data(json!(&dbres[0])));
+              let user = dbres[0].clone();
+              match Jwt::encode(user.id.unwrap(), user.auth.clone().unwrap()) {
+                Ok((token, exp)) => {
+                  tracing::info!(
+                    "User {} login successfully with token {}.",
+                    user.id.unwrap(),
+                    &token
+                  );
+                  let mut cookie = Cookie::new("token", token);
+                  cookie.set_expires(exp);
+                  response.add_cookie(cookie);
+                  response.render(Res::success_data(json!(&user)));
+                }
+                Err(e) => {
+                  tracing::error!("{:?}", e);
+                  response.render(Res::error("token generation failed"));
+                }
+              }
             }
           }
         }
@@ -155,6 +173,11 @@ async fn login(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
   tracing::info!("Received a request to update a user.",);
+  if let None = request.cookie("token") {
+    tracing::info!("User not login.");
+    response.render(Res::error("user not login"));
+    return;
+  }
   match request.parse_json::<User>().await {
     Ok(user) => {
       let dbres = User::select_by_column(&db.clone(), "id", &user.id).await;
@@ -164,31 +187,43 @@ async fn update(request: &mut Request, response: &mut Response) {
             tracing::info!("User not found.");
             response.render(Res::error("user not found"));
           } else {
-            let mut new_user = dbres[0].clone();
-            if let Some(avatar) = user.avatar {
-              new_user.avatar = Some(avatar);
-            }
-            if let Some(account) = user.account {
-              new_user.account = Some(account);
-            }
-            if let Some(password) = user.password {
-              new_user.password = Some(password);
-            }
-            if let Some(join_time) = user.join_time {
-              new_user.join_time = Some(join_time);
-            }
-            if let Some(authority) = user.authority {
-              new_user.authority = Some(authority);
-            }
-            let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await;
-            match dbinfo {
-              Ok(dbinfo) => {
-                tracing::info!("{}", dbinfo);
-                response.render(Res::success());
+            match check_authority(
+              request.cookie("token").unwrap().value().to_string(),
+              user.id.unwrap(),
+              Authority::Admin,
+            ) {
+              false => {
+                tracing::info!("User {} has no authority.", user.id.unwrap());
+                response.render(Res::error("no authority"));
               }
-              Err(e) => {
-                tracing::error!("{:?}", e);
-                response.render(Res::error("database insertion failed"));
+              true => {
+                let mut new_user = dbres[0].clone();
+                if let Some(avatar) = user.avatar {
+                  new_user.avatar = Some(avatar);
+                }
+                if let Some(account) = user.account {
+                  new_user.account = Some(account);
+                }
+                if let Some(password) = user.password {
+                  new_user.password = Some(password);
+                }
+                if let Some(join_time) = user.join_time {
+                  new_user.join_time = Some(join_time);
+                }
+                if let Some(authority) = user.auth {
+                  new_user.auth = Some(authority);
+                }
+                let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await;
+                match dbinfo {
+                  Ok(dbinfo) => {
+                    tracing::info!("{}", dbinfo);
+                    response.render(Res::success());
+                  }
+                  Err(e) => {
+                    tracing::error!("{:?}", e);
+                    response.render(Res::error("database insertion failed"));
+                  }
+                }
               }
             }
           }
@@ -267,14 +302,27 @@ async fn query(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn delete(request: &mut Request, response: &mut Response) {
-  tracing::info!("Received a request to delete user.",);
+  if let None = request.cookie("token") {
+    tracing::info!("User not login.");
+    response.render(Res::error("user not login"));
+    return;
+  }
   match request.parse_json::<User>().await {
     Ok(user) => {
       let dbinfo = User::delete_by_column(&db.clone(), "id", &user.id).await;
       match dbinfo {
         Ok(_) => {
-          tracing::info!("Delete user {} successfully", &user.id.unwrap());
-          response.render(Res::success());
+          if !check_authority(
+            request.cookie("token").unwrap().value().to_string(),
+            user.id.unwrap(),
+            Authority::Admin,
+          ) {
+            tracing::info!("User {} has no authority.", user.id.unwrap());
+            response.render(Res::error("no authority"));
+          } else {
+            tracing::info!("Delete user {} successfully", &user.id.unwrap());
+            response.render(Res::success());
+          }
         }
         Err(e) => {
           tracing::error!("{:?}", e);

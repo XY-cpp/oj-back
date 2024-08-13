@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+jsonwebtoken = "9.3.0"
 lazy_static = "1.5.0"
 rbatis = "4.5.29"
 rbdc-mysql = "4.5.8"
@@ -11,6 +12,8 @@ rbs = "4.5.18"
 salvo = "0.64.0"
 serde = "1.0.204"
 serde_json = "1.0.122"
+serde_repr = "0.1.19"
+time = "0.3.36"
 tokio = { version = "1", features = ["macros", "signal"] }
 toml = "0.8.19"
 tracing = "0.1"

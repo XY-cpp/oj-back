@@ -8,3 +8,7 @@ port = 3306
 username = "root"
 password = "19260817"
 database = "oj"
+
+[auth]
+secret = "jzm19260817"
+expires = 14

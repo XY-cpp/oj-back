@@ -10,6 +10,7 @@ lazy_static! {
 pub struct Settings {
   pub server: Server,
   pub mysql: Database,
+  pub auth: Auth,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -25,6 +26,12 @@ pub struct Database {
   pub username: String,
   pub password: String,
   pub database: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Auth {
+  pub secret: String,
+  pub expires: i64,
 }
 
 impl Default for Settings {
