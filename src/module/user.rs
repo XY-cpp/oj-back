@@ -214,44 +214,40 @@ async fn update(request: &mut Request, response: &mut Response) {
     if user.id.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = User::select_by_column(&db.clone(), "id", &user.id).await?;
-    if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, user.id.unwrap().to_string());
-    }
-    match check_authority(
+    if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
       user.id.unwrap(),
       Authority::Admin,
     ) {
-      false => {
-        return generate_error!(
-          Error::NoAuthority,
-          format!("user has no authority to update user {}", user.id.unwrap()).to_string()
-        );
-      }
-      true => {
-        let mut new_user = dbres[0].clone();
-        if let Some(avatar) = user.avatar {
-          new_user.avatar = Some(avatar);
-        }
-        if let Some(account) = user.account {
-          new_user.account = Some(account);
-        }
-        if let Some(password) = user.password {
-          new_user.password = Some(password);
-        }
-        if let Some(join_time) = user.join_time {
-          new_user.join_time = Some(join_time);
-        }
-        if let Some(authority) = user.auth {
-          new_user.auth = Some(authority);
-        }
-        let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await?;
-        tracing::info!("{}", dbinfo);
-        response.render(Res::success());
-        Ok(())
-      }
+      return generate_error!(
+        Error::NoAuthority,
+        format!("user has no authority to update user {}", user.id.unwrap()).to_string()
+      );
     }
+    let dbres = User::select_by_column(&db.clone(), "id", &user.id).await?;
+    if dbres.len() == 0 {
+      return generate_error!(Error::DataNotFound, user.id.unwrap().to_string());
+    }
+    let mut new_user = dbres[0].clone();
+    if let Some(avatar) = user.avatar {
+      new_user.avatar = Some(avatar);
+    }
+    if let Some(account) = user.account {
+      new_user.account = Some(account);
+    }
+    if let Some(password) = user.password {
+      new_user.password = Some(password);
+    }
+    if let Some(join_time) = user.join_time {
+      new_user.join_time = Some(join_time);
+    }
+    if let Some(authority) = user.auth {
+      new_user.auth = Some(authority);
+    }
+    let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await?;
+    tracing::info!("{}", dbinfo);
+    response.render(Res::success());
+    Ok(())
   }
   handle_error!(operation(request, response), response);
 }
@@ -352,24 +348,20 @@ async fn delete(request: &mut Request, response: &mut Response) {
     if user.id.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let _ = User::delete_by_column(&db.clone(), "id", &user.id).await?;
-    match check_authority(
+    if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
       user.id.unwrap(),
       Authority::Admin,
     ) {
-      false => {
-        return generate_error!(
-          Error::NoAuthority,
-          format!("user has no authority to delete user {}", user.id.unwrap()).to_string()
-        );
-      }
-      true => {
-        tracing::info!("Delete user {} successfully", &user.id.unwrap());
-        response.render(Res::success());
-        Ok(())
-      }
+      return generate_error!(
+        Error::NoAuthority,
+        format!("user has no authority to delete user {}", user.id.unwrap()).to_string()
+      );
     }
+    let _ = User::delete_by_column(&db.clone(), "id", &user.id).await?;
+    tracing::info!("Delete user {} successfully", &user.id.unwrap());
+    response.render(Res::success());
+    Ok(())
   }
   handle_error!(operation(request, response), response);
 }
