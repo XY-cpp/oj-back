@@ -6,8 +6,8 @@ use oj;
 create table user (
   id int primary key auto_increment, 
   avatar text,
-  account char(32) unique,
-  password char(64),
+  account char(32) unique not null,
+  password char(64) not null,
   join_time date,
-  auth int
+  auth int not null
 );
