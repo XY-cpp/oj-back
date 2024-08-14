@@ -226,7 +226,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       false => {
         return generate_error!(
           Error::NoAuthority,
-          format!("user {} has no authority", user.id.unwrap()).to_string()
+          format!("user has no authority to update user {}", user.id.unwrap()).to_string()
         );
       }
       true => {
@@ -361,7 +361,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
       false => {
         return generate_error!(
           Error::NoAuthority,
-          format!("user {} has no authority", user.id.unwrap()).to_string()
+          format!("user has no authority to delete user {}", user.id.unwrap()).to_string()
         );
       }
       true => {

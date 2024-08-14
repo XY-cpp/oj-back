@@ -6,7 +6,7 @@ pub enum Error {
   #[error("Rbatis error: {0}")]
   RbatisError(#[from] rbatis::rbdc::Error),
 
-  #[error("Token error error: {0}")]
+  #[error("Token error: {0}")]
   TokenError(#[from] jsonwebtoken::errors::Error),
 
   #[error("Duplicate data: {0}")]
