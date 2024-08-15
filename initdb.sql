@@ -12,6 +12,9 @@ create table user (
   auth int not null
 );
 
+INSERT INTO user (avatar, account, password, join_time, auth)
+VALUES ('null', 'admin', 'jzm19260817', CURDATE(), 30);
+
 -- 题目表
 create table problem (
   pid int primary key auto_increment, 
