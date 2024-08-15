@@ -22,7 +22,7 @@ pub fn init_router() -> Router {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Problem {
   /// 题目编号
-  id: Option<i32>,
+  pid: Option<i32>,
   /// 标题
   title: Option<String>,
   /// 内容
@@ -34,7 +34,7 @@ struct Problem {
   /// 内存，单位: KB
   memory_limit: Option<i32>,
   /// 上传用户
-  user_id: Option<i32>,
+  uid: Option<i32>,
 }
 crud!(Problem {});
 
@@ -94,7 +94,7 @@ async fn insert(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::WrongDataFormat, "empty title".to_string());
     }
     let mut problem = problem;
-    problem.user_id = Some(
+    problem.uid = Some(
       Jwt::decode(request.cookie("token").unwrap().value().to_string())
         .unwrap()
         .0,
@@ -148,29 +148,25 @@ async fn update(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
     let problem = request.parse_json::<Problem>().await?;
-    if problem.id.is_none() {
+    if problem.pid.is_none() {
       return generate_error!(Error::WrongDataFormat, "id not found".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.id).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, problem.id.unwrap().to_string());
+      return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
     }
-    let user_id = match dbres[0].user_id {
-      Some(user_id) => user_id,
+    let uid = match dbres[0].uid {
+      Some(uid) => uid,
       None => 0,
     };
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
-      user_id,
+      uid,
       Authority::Admin,
     ) {
       return generate_error!(
         Error::NoAuthority,
-        format!(
-          "user has no authority to update problem owned by {}",
-          user_id
-        )
-        .to_string()
+        format!("user has no authority to update problem owned by {}", uid).to_string()
       );
     }
     let mut new_problem = dbres[0].clone();
@@ -189,8 +185,8 @@ async fn update(request: &mut Request, response: &mut Response) {
     if let Some(memory_limit) = problem.memory_limit {
       new_problem.memory_limit = Some(memory_limit);
     }
-    if let Some(user_id) = problem.user_id {
-      new_problem.user_id = Some(user_id);
+    if let Some(uid) = problem.uid {
+      new_problem.uid = Some(uid);
     }
     let dbinfo = Problem::update_by_column(&db.clone(), &new_problem, "id").await?;
     tracing::info!("{}", dbinfo);
@@ -238,17 +234,17 @@ async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a request to query a problem.",);
     let problem = request.parse_json::<Problem>().await?;
-    if problem.id.is_none() {
+    if problem.pid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.id).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
     if dbres.len() == 0 {
       return generate_error!(
         Error::DataNotFound,
-        format!("account: {}", &problem.id.unwrap()).to_string()
+        format!("account: {}", &problem.pid.unwrap()).to_string()
       );
     } else {
-      tracing::info!("Query problem {} successfully.", &dbres[0].id.unwrap());
+      tracing::info!("Query problem {} successfully.", &dbres[0].pid.unwrap());
       response.render(Res::success_data(json!(&dbres[0])));
     }
     Ok(())
@@ -293,33 +289,33 @@ async fn delete(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
     let problem = request.parse_json::<Problem>().await?;
-    if problem.id.is_none() {
+    if problem.pid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.id).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, problem.id.unwrap().to_string());
+      return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
     }
-    let user_id = match dbres[0].user_id {
-      Some(user_id) => user_id,
+    let uid = match dbres[0].uid {
+      Some(uid) => uid,
       None => 0,
     };
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
-      user_id,
+      uid,
       Authority::Admin,
     ) {
       return generate_error!(
         Error::NoAuthority,
         format!(
           "user has no authority to delete problem owned by user {}",
-          user_id
+          uid
         )
         .to_string()
       );
     }
-    let _ = Problem::delete_by_column(&db.clone(), "id", problem.id).await?;
-    tracing::info!("Delete problem {} successfully", &problem.id.unwrap());
+    let _ = Problem::delete_by_column(&db.clone(), "id", problem.pid).await?;
+    tracing::info!("Delete problem {} successfully", &problem.pid.unwrap());
     response.render(Res::success());
     Ok(())
   }

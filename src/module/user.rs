@@ -23,7 +23,7 @@ pub fn init_router() -> Router {
 /// 用户结构体
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct User {
-  id: Option<i32>,
+  uid: Option<i32>,
   avatar: Option<String>,
   account: Option<String>,
   password: Option<String>,
@@ -155,10 +155,10 @@ async fn login(request: &mut Request, response: &mut Response) {
       );
     }
     let user = dbres[0].clone();
-    let (token, exp) = Jwt::encode(user.id.unwrap(), user.auth.clone().unwrap())?;
+    let (token, exp) = Jwt::encode(user.uid.unwrap(), user.auth.clone().unwrap())?;
     tracing::info!(
       "User {} login successfully with token {}.",
-      user.id.unwrap(),
+      user.uid.unwrap(),
       &token
     );
     let mut cookie = Cookie::new("token", token);
@@ -211,22 +211,22 @@ async fn update(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
     let user = request.parse_json::<User>().await?;
-    if user.id.is_none() {
+    if user.uid.is_none() {
       return generate_error!(Error::WrongDataFormat, "id not found".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
-      user.id.unwrap(),
+      user.uid.unwrap(),
       Authority::Admin,
     ) {
       return generate_error!(
         Error::NoAuthority,
-        format!("user has no authority to update user {}", user.id.unwrap()).to_string()
+        format!("user has no authority to update user {}", user.uid.unwrap()).to_string()
       );
     }
-    let dbres = User::select_by_column(&db.clone(), "id", &user.id).await?;
+    let dbres = User::select_by_column(&db.clone(), "id", &user.uid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, user.id.unwrap().to_string());
+      return generate_error!(Error::DataNotFound, user.uid.unwrap().to_string());
     }
     let mut new_user = dbres[0].clone();
     if let Some(avatar) = user.avatar {
@@ -290,17 +290,17 @@ async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a request to query a user.",);
     let user = request.parse_json::<User>().await?;
-    if user.id.is_none() {
+    if user.uid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = User::select_by_column(&db.clone(), "id", &user.id).await?;
+    let dbres = User::select_by_column(&db.clone(), "id", &user.uid).await?;
     if dbres.len() == 0 {
       return generate_error!(
         Error::DataNotFound,
-        format!("id: {}", &user.id.unwrap()).to_string()
+        format!("id: {}", &user.uid.unwrap()).to_string()
       );
     } else {
-      tracing::info!("Query user {} successfully.", &dbres[0].id.unwrap());
+      tracing::info!("Query user {} successfully.", &dbres[0].uid.unwrap());
       response.render(Res::success_data(json!(&dbres[0])));
     }
     Ok(())
@@ -345,21 +345,21 @@ async fn delete(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
     let user = request.parse_json::<User>().await?;
-    if user.id.is_none() {
+    if user.uid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
-      user.id.unwrap(),
+      user.uid.unwrap(),
       Authority::Admin,
     ) {
       return generate_error!(
         Error::NoAuthority,
-        format!("user has no authority to delete user {}", user.id.unwrap()).to_string()
+        format!("user has no authority to delete user {}", user.uid.unwrap()).to_string()
       );
     }
-    let _ = User::delete_by_column(&db.clone(), "id", &user.id).await?;
-    tracing::info!("Delete user {} successfully", &user.id.unwrap());
+    let _ = User::delete_by_column(&db.clone(), "id", &user.uid).await?;
+    tracing::info!("Delete user {} successfully", &user.uid.unwrap());
     response.render(Res::success());
     Ok(())
   }
