@@ -288,7 +288,7 @@ async fn update(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to query.",);
+    tracing::info!("Received a request to query a user.",);
     let user = request.parse_json::<User>().await?;
     if user.id.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());

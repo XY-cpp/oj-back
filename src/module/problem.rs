@@ -143,7 +143,7 @@ async fn insert(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to update a user.",);
+    tracing::info!("Received a request to update a problem.",);
     if let None = request.cookie("token") {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
@@ -236,7 +236,7 @@ async fn update(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to query.",);
+    tracing::info!("Received a request to query a problem.",);
     let problem = request.parse_json::<Problem>().await?;
     if problem.id.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
@@ -288,7 +288,7 @@ async fn query(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn delete(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to delete a user.",);
+    tracing::info!("Received a request to delete a problem.",);
     if let None = request.cookie("token") {
       return generate_error!(Error::NoAuthority, "user not login".to_string());
     }
@@ -319,7 +319,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
       );
     }
     let _ = Problem::delete_by_column(&db.clone(), "id", problem.id).await?;
-    tracing::info!("Delete user {} successfully", &problem.id.unwrap());
+    tracing::info!("Delete problem {} successfully", &problem.id.unwrap());
     response.render(Res::success());
     Ok(())
   }
