@@ -15,6 +15,7 @@ pub fn init_router() -> Router {
   Router::with_path("user")
     .push(Router::with_path("register").post(register))
     .push(Router::with_path("login").post(login))
+    .push(Router::with_path("tokenlogin").get(tokenlogin))
     .push(Router::with_path("update").post(update))
     .push(Router::with_path("query").post(query))
     .push(Router::with_path("delete").post(delete))
@@ -164,6 +165,68 @@ async fn login(request: &mut Request, response: &mut Response) {
     response.add_cookie(cookie);
     response.render(Res::success_data(json!(&user)));
     Ok(())
+  }
+  handle_error!(operation(request, response), response);
+}
+
+/// 用户token登录
+///
+/// # 前端请求地址
+///
+/// `/user/tokenlogin`
+///
+/// # 前端请求格式
+///
+/// 使用`get`请求
+///
+/// # 后端响应格式
+///
+/// - 成功
+/// ```json5
+/// {
+///   "status": "success",
+///   "data": [
+///     "...", //user的全部信息
+///   ]
+/// }
+/// ```
+///
+/// - 失败
+/// ``` json5
+/// {
+///   "status": "error",
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
+/// }
+/// ```
+///
+#[handler]
+async fn tokenlogin(request: &mut Request, response: &mut Response) {
+  async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
+    tracing::info!("Received a post request",);
+    match request.cookie("token") {
+      Some(cookie) => match Jwt::decode(cookie.value().to_string()) {
+        Ok((uid, _)) => {
+          let dbres = User::select_by_column(&db.clone(), "uid", uid).await?;
+          if dbres.len() == 0 {
+            return generate_error!(Error::DataNotFound, format!("User {}.", uid));
+          }
+          tracing::info!(
+            "User {} login successfully with token {}.",
+            uid,
+            cookie.value().to_string()
+          );
+          response.render(Res::success_data(json!(&dbres[0])));
+          return Ok(());
+        }
+        Err(_) => {
+          return generate_error!(Error::NoToken, "Token is wrong or expired.".to_string());
+        }
+      },
+      None => {
+        return generate_error!(Error::NoToken, "Empty.".to_string());
+      }
+    }
   }
   handle_error!(operation(request, response), response);
 }
