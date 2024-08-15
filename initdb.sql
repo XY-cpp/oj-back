@@ -11,3 +11,15 @@ create table user (
   join_time date,
   auth int not null
 );
+
+-- 题目表
+create table problem (
+  id int primary key auto_increment, 
+  title char(64) unique not null,
+  description text,
+  judge_num int not null default 0,
+  time_limit float not null default 1.0,
+  memory_limit int not null default 128000,
+  user_id int,
+  foreign key(user_id) references user(id) on delete set null
+);
