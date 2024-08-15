@@ -1,5 +1,4 @@
 use rbatis::crud;
-use rbatis::rbdc::Time;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -30,8 +29,8 @@ struct Problem {
   description: Option<String>,
   /// 测试点数量
   judge_num: Option<i32>,
-  /// 时间限制
-  time_limit: Option<Time>,
+  /// 时间限制, 单位：秒
+  time_limit: Option<f32>,
   /// 内存，单位: KB
   memory_limit: Option<i32>,
   /// 上传用户
@@ -100,6 +99,16 @@ async fn insert(request: &mut Request, response: &mut Response) {
         .unwrap()
         .0,
     );
+    if problem.judge_num.is_none() {
+      problem.judge_num = Some(0);
+    }
+    if problem.time_limit.is_none() {
+      problem.time_limit = Some(1.0);
+    }
+    if problem.memory_limit.is_none() {
+      problem.memory_limit = Some(128000);
+    }
+    tracing::info!("{:?}", problem);
     let dbinfo = Problem::insert(&db.clone(), &problem).await?;
     tracing::info!("{}", dbinfo);
     response.render(Res::success());
@@ -171,6 +180,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       );
     }
     let mut new_problem = dbres[0].clone();
+    tracing::error!("{:?}", new_problem);
     if let Some(title) = problem.title {
       new_problem.title = Some(title);
     }

@@ -6,10 +6,10 @@ use oj;
 create table user (
   uid int primary key auto_increment, 
   avatar text,
-  account char(32) unique not null,
-  password char(64) not null,
+  account char(32) unique,
+  password char(64),
   join_time date,
-  auth int not null
+  auth int
 );
 
 INSERT INTO user (avatar, account, password, join_time, auth)
@@ -20,9 +20,9 @@ create table problem (
   pid int primary key auto_increment, 
   title char(64) not null,
   description text,
-  judge_num int not null default 0,
-  time_limit time(3) not null default "00:00:01",
-  memory_limit int not null default 128000,
+  judge_num int,
+  time_limit float,
+  memory_limit int,
   uid int,
   foreign key(uid) references user(uid) on delete set null
 );

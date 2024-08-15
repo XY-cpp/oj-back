@@ -70,7 +70,11 @@ async fn register(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a request to register a user.",);
     let user = request.parse_json::<User>().await?;
-    if user.account.is_none() || user.password.is_none() {
+    if user.account.is_none()
+      || user.password.is_none()
+      || user.account.clone().unwrap().is_empty()
+      || user.password.clone().unwrap().is_empty()
+    {
       return generate_error!(
         Error::WrongDataFormat,
         "empty username or passowrd".to_string()
