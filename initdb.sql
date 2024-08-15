@@ -26,3 +26,17 @@ create table problem (
   uid int,
   foreign key(uid) references user(uid) on delete set null
 );
+
+-- 评测记录表
+create table record (
+  rid int primary key auto_increment,
+  uid int,
+  foreign key(uid) references user(uid) on delete cascade,
+  pid int,
+  foreign key(pid) references problem(pid) on delete cascade,
+  language int,
+  code text,
+  submit_time datetime,
+  status int,
+  run_time float
+)

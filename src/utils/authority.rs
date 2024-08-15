@@ -1,3 +1,7 @@
+//! 认证模块
+//!
+//! 将编号和权限加密为`token`，或从`token`解密为编号和权限
+
 use jsonwebtoken::{decode, errors::Error, DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
@@ -7,11 +11,16 @@ use crate::utils::config::config;
 
 /// 权限枚举
 #[derive(Clone, Debug, Serialize_repr, Deserialize_repr, PartialOrd, PartialEq)]
-#[repr(u8)]
+#[repr(u16)]
 pub enum Authority {
+  /// 游客
   Tourist = 0,
+  /// 用户
   User = 10,
-  Admin = 20,
+  /// 评测机
+  Judger = 20,
+  /// 管理员
+  Admin = 30,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
