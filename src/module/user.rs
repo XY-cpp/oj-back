@@ -1,13 +1,11 @@
-use rbatis::snowflake::new_snowflake_id;
 use rbatis::{crud, rbdc::datetime::DateTime};
-use rbdc_mysql::protocol::auth;
 use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::api::front::Res;
-use crate::utils::authority::{self, check_authority, Authority, Jwt};
+use crate::utils::authority::{check_authority, Authority, Jwt};
 use crate::utils::db::db;
 use crate::utils::error::Error;
 use crate::{generate_error, handle_error};
@@ -182,7 +180,7 @@ async fn login(request: &mut Request, response: &mut Response) {
 ///
 /// ```json5
 /// {
-///   "id": [num], // 要修改的用户编号
+///   "uid": 1, // 要修改的用户编号
 ///   "...", //需要修改的数据
 /// }
 /// ```
@@ -214,7 +212,7 @@ async fn update(request: &mut Request, response: &mut Response) {
     }
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "id not found".to_string());
+      return generate_error!(Error::WrongDataFormat, "uid not found".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
@@ -226,7 +224,7 @@ async fn update(request: &mut Request, response: &mut Response) {
         format!("user has no authority to update user {}", user.uid.unwrap()).to_string()
       );
     }
-    let dbres = User::select_by_column(&db.clone(), "id", &user.uid).await?;
+    let dbres = User::select_by_column(&db.clone(), "uid", &user.uid).await?;
     if dbres.len() == 0 {
       return generate_error!(Error::DataNotFound, user.uid.unwrap().to_string());
     }
@@ -256,7 +254,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       }
       new_user.auth = Some(authority);
     }
-    let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await?;
+    let dbinfo = User::update_by_column(&db.clone(), &new_user, "uid").await?;
     tracing::info!("{}", dbinfo);
     response.render(Res::success());
     Ok(())
@@ -272,7 +270,7 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// # 前端请求格式
 /// ```json5
 /// {
-///   "id": [num], //要查询的用户id
+///   "uid": [num], //要查询的用户id
 /// }
 /// ```
 ///
@@ -305,12 +303,9 @@ async fn query(request: &mut Request, response: &mut Response) {
     if user.uid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = User::select_by_column(&db.clone(), "id", &user.uid).await?;
+    let dbres = User::select_by_column(&db.clone(), "uid", &user.uid).await?;
     if dbres.len() == 0 {
-      return generate_error!(
-        Error::DataNotFound,
-        format!("id: {}", &user.uid.unwrap()).to_string()
-      );
+      return generate_error!(Error::DataNotFound, user.uid.unwrap().to_string());
     } else {
       tracing::info!("Query user {} successfully.", &dbres[0].uid.unwrap());
       response.render(Res::success_data(json!(&dbres[0])));
@@ -328,7 +323,7 @@ async fn query(request: &mut Request, response: &mut Response) {
 /// # 前端请求格式
 /// ```json
 /// {
-///   id: ... //要删除的用户id
+///   uid: 1 //要删除的用户id
 /// }
 /// ```
 ///
@@ -370,7 +365,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
         format!("user has no authority to delete user {}", user.uid.unwrap()).to_string()
       );
     }
-    let _ = User::delete_by_column(&db.clone(), "id", &user.uid).await?;
+    let _ = User::delete_by_column(&db.clone(), "uid", &user.uid).await?;
     tracing::info!("Delete user {} successfully", &user.uid.unwrap());
     response.render(Res::success());
     Ok(())

@@ -1,4 +1,5 @@
 use rbatis::crud;
+use rbatis::rbdc::Time;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -29,8 +30,8 @@ struct Problem {
   description: Option<String>,
   /// 测试点数量
   judge_num: Option<i32>,
-  /// 时间限制，单位：s
-  time_limit: Option<f32>,
+  /// 时间限制
+  time_limit: Option<Time>,
   /// 内存，单位: KB
   memory_limit: Option<i32>,
   /// 上传用户
@@ -117,7 +118,7 @@ async fn insert(request: &mut Request, response: &mut Response) {
 ///
 /// ```json5
 /// {
-///   "id": [num], // 需要修改的题目编号
+///   "pid": 1, // 需要修改的题目编号
 ///   "..." // 需要修改的数据
 /// }
 /// ```
@@ -149,9 +150,9 @@ async fn update(request: &mut Request, response: &mut Response) {
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "id not found".to_string());
+      return generate_error!(Error::WrongDataFormat, "pid not found".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
       return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
     }
@@ -188,7 +189,7 @@ async fn update(request: &mut Request, response: &mut Response) {
     if let Some(uid) = problem.uid {
       new_problem.uid = Some(uid);
     }
-    let dbinfo = Problem::update_by_column(&db.clone(), &new_problem, "id").await?;
+    let dbinfo = Problem::update_by_column(&db.clone(), &new_problem, "pid").await?;
     tracing::info!("{}", dbinfo);
     response.render(Res::success());
     Ok(())
@@ -199,12 +200,12 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// 题目查询
 ///
 /// # 前端请求地址
-/// `/user/query`
+/// `/problem/query`
 ///
 /// # 前端请求格式
 /// ```json5
 /// {
-///   "id": [num], //要查询的题目id
+///   "pid": 1, //要查询的题目id
 /// }
 /// ```
 ///
@@ -237,7 +238,7 @@ async fn query(request: &mut Request, response: &mut Response) {
     if problem.pid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
       return generate_error!(
         Error::DataNotFound,
@@ -252,15 +253,15 @@ async fn query(request: &mut Request, response: &mut Response) {
   handle_error!(operation(request, response), response);
 }
 
-/// 用户删除
+/// 题目删除
 ///
 /// # 前端请求地址
-/// `/user/delete`
+/// `/problem/delete`
 ///
 /// # 前端请求格式
 /// ```json
 /// {
-///   id: ... //要删除的用户id
+///   pid: 1 //要删除的题目id
 /// }
 /// ```
 ///
@@ -292,7 +293,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
     if problem.pid.is_none() {
       return generate_error!(Error::WrongDataFormat, "".to_string());
     }
-    let dbres = Problem::select_by_column(&db.clone(), "id", &problem.pid).await?;
+    let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
       return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
     }
@@ -314,7 +315,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
         .to_string()
       );
     }
-    let _ = Problem::delete_by_column(&db.clone(), "id", problem.pid).await?;
+    let _ = Problem::delete_by_column(&db.clone(), "pid", problem.pid).await?;
     tracing::info!("Delete problem {} successfully", &problem.pid.unwrap());
     response.render(Res::success());
     Ok(())

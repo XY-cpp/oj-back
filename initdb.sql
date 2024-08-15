@@ -18,7 +18,7 @@ create table problem (
   title char(64) unique not null,
   description text,
   judge_num int not null default 0,
-  time_limit float not null default 1.0,
+  time_limit time(3) not null default "00:00:01",
   memory_limit int not null default 128000,
   uid int,
   foreign key(uid) references user(uid) on delete set null
