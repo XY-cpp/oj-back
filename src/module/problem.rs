@@ -67,31 +67,28 @@ crud!(Problem {});
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn insert(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to insert.",);
+    tracing::info!("Received a post request.",);
     match request.cookie("token") {
       Some(token) => {
         if !check_authority(token.value().to_string(), 0, Authority::User) {
-          return generate_error!(
-            Error::NoAuthority,
-            format!("user has no authority to insert a problem").to_string()
-          );
+          return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
         }
       }
       None => {
-        return generate_error!(Error::NoAuthority, "user not login".to_string());
+        return generate_error!(Error::NoToken, "Empty.".to_string());
       }
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.title.is_none() {
-      return generate_error!(Error::WrongDataFormat, "empty title".to_string());
+      return generate_error!(Error::EmptyData, "Empty title.".to_string());
     }
     let mut problem = problem;
     problem.uid = Some(
@@ -109,8 +106,8 @@ async fn insert(request: &mut Request, response: &mut Response) {
       problem.memory_limit = Some(128000);
     }
     tracing::info!("{:?}", problem);
-    let dbinfo = Problem::insert(&db.clone(), &problem).await?;
-    tracing::info!("{}", dbinfo);
+    let _ = Problem::insert(&db.clone(), &problem).await?;
+    tracing::info!("Insert problem {} successfully.", problem.pid.unwrap());
     response.render(Res::success());
     Ok(())
   }
@@ -145,25 +142,28 @@ async fn insert(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to update a problem.",);
+    tracing::info!("Received a post request.",);
     if let None = request.cookie("token") {
-      return generate_error!(Error::NoAuthority, "user not login".to_string());
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "pid not found".to_string());
+      return generate_error!(Error::EmptyData, "Empty problem id.".to_string());
     }
     let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
+      return generate_error!(
+        Error::DataNotFound,
+        format!("Problem {}.", problem.pid.unwrap())
+      );
     }
     let uid = match dbres[0].uid {
       Some(uid) => uid,
@@ -174,10 +174,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       uid,
       Authority::Admin,
     ) {
-      return generate_error!(
-        Error::NoAuthority,
-        format!("user has no authority to update problem owned by {}", uid).to_string()
-      );
+      return generate_error!(Error::NoAuthority, "Empty".to_string());
     }
     let mut new_problem = dbres[0].clone();
     tracing::error!("{:?}", new_problem);
@@ -199,8 +196,8 @@ async fn update(request: &mut Request, response: &mut Response) {
     if let Some(uid) = problem.uid {
       new_problem.uid = Some(uid);
     }
-    let dbinfo = Problem::update_by_column(&db.clone(), &new_problem, "pid").await?;
-    tracing::info!("{}", dbinfo);
+    let _ = Problem::update_by_column(&db.clone(), &new_problem, "pid").await?;
+    tracing::info!("Update problem {} successfully.", problem.pid.unwrap());
     response.render(Res::success());
     Ok(())
   }
@@ -235,29 +232,28 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to query a problem.",);
+    tracing::info!("Received a post request.",);
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
       return generate_error!(
         Error::DataNotFound,
-        format!("account: {}", &problem.pid.unwrap()).to_string()
+        format!("Problem {}.", problem.pid.unwrap())
       );
-    } else {
-      tracing::info!("Query problem {} successfully.", &dbres[0].pid.unwrap());
-      response.render(Res::success_data(json!(&dbres[0])));
     }
+    tracing::info!("Query problem {} successfully.", &dbres[0].pid.unwrap());
+    response.render(Res::success_data(json!(&dbres[0])));
     Ok(())
   }
   handle_error!(operation(request, response), response);
@@ -288,24 +284,27 @@ async fn query(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 #[handler]
 async fn delete(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to delete a problem.",);
+    tracing::info!("Received a post request.",);
     if let None = request.cookie("token") {
-      return generate_error!(Error::NoAuthority, "user not login".to_string());
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let dbres = Problem::select_by_column(&db.clone(), "pid", &problem.pid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, problem.pid.unwrap().to_string());
+      return generate_error!(
+        Error::DataNotFound,
+        format!("Problem {}.", problem.pid.unwrap())
+      );
     }
     let uid = match dbres[0].uid {
       Some(uid) => uid,
@@ -326,7 +325,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
       );
     }
     let _ = Problem::delete_by_column(&db.clone(), "pid", problem.pid).await?;
-    tracing::info!("Delete problem {} successfully", &problem.pid.unwrap());
+    tracing::info!("Delete problem {} successfully", problem.pid.unwrap());
     response.render(Res::success());
     Ok(())
   }

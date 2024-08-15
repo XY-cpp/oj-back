@@ -105,31 +105,28 @@ enum Language {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn insert(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to insert a record.",);
+    tracing::info!("Received a post request.",);
     match request.cookie("token") {
       Some(token) => {
         if !check_authority(token.value().to_string(), 0, Authority::Judger) {
-          return generate_error!(
-            Error::NoAuthority,
-            format!("user has no authority to insert a record").to_string()
-          );
+          return generate_error!(Error::NoToken, "Empty.".to_string());
         }
       }
       None => {
-        return generate_error!(Error::NoAuthority, "user not login".to_string());
+        return generate_error!(Error::NoToken, "Empty.".to_string());
       }
     }
     let record = request.parse_json::<Record>().await?;
     if record.uid.is_none() || record.pid.is_none() || record.language.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let mut record = record;
     record.submit_time = Some(DateTime::now());
@@ -173,35 +170,35 @@ async fn insert(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to update a record.",);
+    tracing::info!("Received a post request.",);
     if let None = request.cookie("token") {
-      return generate_error!(Error::NoAuthority, "user not login".to_string());
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let record = request.parse_json::<Record>().await?;
     if record.rid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "rid not found".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let dbres = Record::select_by_column(&db.clone(), "rid", &record.rid).await?;
     if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, record.rid.unwrap().to_string());
+      return generate_error!(
+        Error::DataNotFound,
+        format!("Record {}.", record.rid.unwrap()).to_string()
+      );
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
       0,
       Authority::Judger,
     ) {
-      return generate_error!(
-        Error::NoAuthority,
-        "user has no authority to update a record".to_string()
-      );
+      return generate_error!(Error::NoAuthority, "Empty.".to_string());
     }
     let mut new_record = dbres[0].clone();
     if let Some(status) = record.status {
@@ -210,8 +207,8 @@ async fn update(request: &mut Request, response: &mut Response) {
     if let Some(run_time) = record.run_time {
       new_record.run_time = Some(run_time);
     }
-    let dbinfo = Record::update_by_column(&db.clone(), &new_record, "rid").await?;
-    tracing::info!("{}", dbinfo);
+    let _ = Record::update_by_column(&db.clone(), &new_record, "rid").await?;
+    tracing::info!("Update record {} successfully", record.rid.unwrap());
     response.render(Res::success());
     Ok(())
   }
@@ -246,26 +243,25 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to query a record.",);
+    tracing::info!("Received a post request.",);
     let record = request.parse_json::<Record>().await?;
     if record.rid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let dbres = Record::select_by_column(&db.clone(), "rid", &record.rid).await?;
     if dbres.len() == 0 {
       return generate_error!(Error::DataNotFound, record.rid.unwrap().to_string());
-    } else {
-      tracing::info!("Query record {} successfully.", &dbres[0].rid.unwrap());
-      response.render(Res::success_data(json!(&dbres[0])));
     }
+    tracing::info!("Query record {} successfully", record.rid.unwrap());
+    response.render(Res::success_data(json!(&dbres[0])));
     Ok(())
   }
   handle_error!(operation(request, response), response);

@@ -1,27 +1,30 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-  #[error("Json parse error: {0}")]
+  #[error("{0}")]
   JsonParseError(#[from] salvo::http::ParseError),
 
-  #[error("Rbatis error: {0}")]
+  #[error("{0}")]
   RbatisError(#[from] rbatis::rbdc::Error),
 
-  #[error("Token error: {0}")]
+  #[error("{0}")]
   TokenError(#[from] jsonwebtoken::errors::Error),
 
-  #[error("Duplicate data: {0}")]
+  #[error("DuplicateData: {0}")]
   DuplicateData(String),
 
-  #[error("Wrong data format: {0}")]
-  WrongDataFormat(String),
+  #[error("NoToken: {0}")]
+  NoToken(String),
 
-  #[error("Wrong password: {0}")]
+  #[error("EmptyData: {0}")]
+  EmptyData(String),
+
+  #[error("WrongPassword: {0}")]
   WrongPassword(String),
 
-  #[error("Data not found: {0}")]
+  #[error("DataNotFound: {0}")]
   DataNotFound(String),
 
-  #[error("No authority: {0}")]
+  #[error("NoAuthority: {0}")]
   NoAuthority(String),
 }
 
@@ -53,11 +56,13 @@ macro_rules! handle_error {
         }
         _ => {
           tracing::warn!("{}", e);
+          let text = e.to_string();
+          let index = text.find(':').unwrap();
           $response.render(
-            crate::api::front::Res::new()
+            Res::new()
               .status("error")
-              .message("data error")
-              .data(json!(e.to_string()))
+              .message(text[..index].to_string())
+              .data(json!(text[index + 2..]))
               .to_json(),
           );
         }

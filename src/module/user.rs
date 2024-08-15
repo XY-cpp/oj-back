@@ -60,31 +60,28 @@ crud!(User {});
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn register(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to register a user.",);
+    tracing::info!("Received a post request.",);
     let user = request.parse_json::<User>().await?;
     if user.account.is_none()
       || user.password.is_none()
       || user.account.clone().unwrap().is_empty()
       || user.password.clone().unwrap().is_empty()
     {
-      return generate_error!(
-        Error::WrongDataFormat,
-        "empty username or passowrd".to_string()
-      );
+      return generate_error!(Error::EmptyData, "Empty username or passowrd.".to_string());
     }
     let dbres = User::select_by_column(&db.clone(), "account", &user.account).await?;
     if dbres.len() > 0 {
       return generate_error!(
         Error::DuplicateData,
-        format!("account: {}", &user.account.unwrap()).to_string()
+        format!("account: {}.", &user.account.unwrap()).to_string()
       );
     }
     let mut user = user;
@@ -130,32 +127,29 @@ async fn register(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn login(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to login.",);
+    tracing::info!("Received a post request",);
     let user = request.parse_json::<User>().await?;
     if user.account.is_none() || user.password.is_none() {
-      return generate_error!(
-        Error::WrongDataFormat,
-        "empty username or passowrd".to_string()
-      );
+      return generate_error!(Error::EmptyData, "Empty username or passowrd.".to_string());
     }
     let dbres = User::select_by_column(&db.clone(), "account", &user.account).await?;
-    if dbres.len() == 0 {
-      return generate_error!(
-        Error::DataNotFound,
-        format!("account: {}", &user.account.unwrap()).to_string()
-      );
-    } else if user.password != dbres[0].password {
+    if dbres.len() == 0 || user.password != dbres[0].password {
       return generate_error!(
         Error::WrongPassword,
-        format!("account: {}", &user.account.unwrap()).to_string()
+        format!(
+          "account: {}, password: {}",
+          user.account.unwrap(),
+          user.password.unwrap()
+        )
+        .to_string()
       );
     }
     let user = dbres[0].clone();
@@ -202,21 +196,21 @@ async fn login(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to update a user.",);
+    tracing::info!("Received a post request.",);
     if let None = request.cookie("token") {
-      return generate_error!(Error::NoAuthority, "user not login".to_string());
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "uid not found".to_string());
+      return generate_error!(Error::EmptyData, "Uid not found.".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
@@ -225,7 +219,7 @@ async fn update(request: &mut Request, response: &mut Response) {
     ) {
       return generate_error!(
         Error::NoAuthority,
-        format!("user has no authority to update user {}", user.uid.unwrap()).to_string()
+        format!("User {}.", user.uid.unwrap()).to_string()
       );
     }
     let dbres = User::select_by_column(&db.clone(), "uid", &user.uid).await?;
@@ -249,17 +243,13 @@ async fn update(request: &mut Request, response: &mut Response) {
       if new_user.auth.clone().unwrap() < authority {
         return generate_error!(
           Error::NoAuthority,
-          format!(
-            "user {} has no authority to get higher authority",
-            new_user.uid.unwrap()
-          )
-          .to_string()
+          format!("User {}.", new_user.uid.unwrap()).to_string()
         );
       }
       new_user.auth = Some(authority);
     }
-    let dbinfo = User::update_by_column(&db.clone(), &new_user, "uid").await?;
-    tracing::info!("{}", dbinfo);
+    let _ = User::update_by_column(&db.clone(), &new_user, "uid").await?;
+    tracing::info!("Update user {} successfully.", user.uid.unwrap());
     response.render(Res::success());
     Ok(())
   }
@@ -294,18 +284,18 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 ///
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to query a user.",);
+    tracing::info!("Received a post request.",);
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
     let dbres = User::select_by_column(&db.clone(), "uid", &user.uid).await?;
     if dbres.len() == 0 {
@@ -344,20 +334,20 @@ async fn query(request: &mut Request, response: &mut Response) {
 /// ``` json5
 /// {
 ///   "status": "error",
-///   "message": "data error", // 或 "internal error"
-///   "data": "..." // 出错数据
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
 /// }
 /// ```
 #[handler]
 async fn delete(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a request to delete a user.",);
+    tracing::info!("Received a post request.",);
     if let None = request.cookie("token") {
-      return generate_error!(Error::NoAuthority, "user not login".to_string());
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::EmptyData, "".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
@@ -366,11 +356,11 @@ async fn delete(request: &mut Request, response: &mut Response) {
     ) {
       return generate_error!(
         Error::NoAuthority,
-        format!("user has no authority to delete user {}", user.uid.unwrap()).to_string()
+        format!("User {}.", user.uid.unwrap()).to_string()
       );
     }
     let _ = User::delete_by_column(&db.clone(), "uid", &user.uid).await?;
-    tracing::info!("Delete user {} successfully", &user.uid.unwrap());
+    tracing::info!("Delete user {} successfully.", &user.uid.unwrap());
     response.render(Res::success());
     Ok(())
   }
