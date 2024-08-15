@@ -1,11 +1,13 @@
+use rbatis::snowflake::new_snowflake_id;
 use rbatis::{crud, rbdc::datetime::DateTime};
+use rbdc_mysql::protocol::auth;
 use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::api::front::Res;
-use crate::utils::authority::{check_authority, Authority, Jwt};
+use crate::utils::authority::{self, check_authority, Authority, Jwt};
 use crate::utils::db::db;
 use crate::utils::error::Error;
 use crate::{generate_error, handle_error};
@@ -242,6 +244,16 @@ async fn update(request: &mut Request, response: &mut Response) {
       new_user.join_time = Some(join_time);
     }
     if let Some(authority) = user.auth {
+      if new_user.auth.clone().unwrap() < authority {
+        return generate_error!(
+          Error::NoAuthority,
+          format!(
+            "user {} has no authority to get higher authority",
+            new_user.uid.unwrap()
+          )
+          .to_string()
+        );
+      }
       new_user.auth = Some(authority);
     }
     let dbinfo = User::update_by_column(&db.clone(), &new_user, "id").await?;
