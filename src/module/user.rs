@@ -212,7 +212,7 @@ async fn update(request: &mut Request, response: &mut Response) {
     }
     let user = request.parse_json::<User>().await?;
     if user.id.is_none() {
-      return generate_error!(Error::WrongDataFormat, "".to_string());
+      return generate_error!(Error::WrongDataFormat, "id not found".to_string());
     }
     if !check_authority(
       request.cookie("token").unwrap().value().to_string(),
@@ -297,7 +297,7 @@ async fn query(request: &mut Request, response: &mut Response) {
     if dbres.len() == 0 {
       return generate_error!(
         Error::DataNotFound,
-        format!("account: {}", &user.account.unwrap()).to_string()
+        format!("id: {}", &user.id.unwrap()).to_string()
       );
     } else {
       tracing::info!("Query user {} successfully.", &dbres[0].id.unwrap());
