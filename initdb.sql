@@ -18,7 +18,7 @@ VALUES ('null', 'admin', 'jzm19260817', CURDATE(), 30);
 -- 题目表
 create table problem (
   pid int primary key auto_increment, 
-  title char(64) unique not null,
+  title char(64) not null,
   description text,
   judge_num int not null default 0,
   time_limit time(3) not null default "00:00:01",
