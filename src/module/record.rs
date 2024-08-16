@@ -131,8 +131,8 @@ async fn insert(request: &mut Request, response: &mut Response) {
     let mut record = record;
     record.submit_time = Some(DateTime::now());
     record.status = Some(Status::Waiting);
-    let dbinfo = Record::insert(&db.clone(), &record).await?;
-    tracing::info!("{}", dbinfo);
+    Record::insert(&db.clone(), &record).await?;
+    tracing::info!("Insert a record successfully");
     response.render(Res::success());
     Ok(())
   }

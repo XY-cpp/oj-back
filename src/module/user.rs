@@ -91,8 +91,8 @@ async fn register(request: &mut Request, response: &mut Response) {
     user.avatar = Some(String::from("http://127.0.0.1:8001/null"));
     user.join_time = Some(DateTime::now());
     user.auth = Some(Authority::User);
-    let dbinfo = User::insert(&db.clone(), &user).await?;
-    tracing::info!("{}", dbinfo);
+    User::insert(&db.clone(), &user).await?;
+    tracing::info!("Register successfully");
     response.render(Res::success());
     Ok(())
   }

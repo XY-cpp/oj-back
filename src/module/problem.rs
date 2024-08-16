@@ -107,8 +107,8 @@ async fn insert(request: &mut Request, response: &mut Response) {
       problem.memory_limit = Some(128);
     }
     tracing::info!("{:?}", problem);
-    let _ = Problem::insert(&db.clone(), &problem).await?;
-    tracing::info!("Insert problem {} successfully.", problem.pid.unwrap());
+    Problem::insert(&db.clone(), &problem).await?;
+    tracing::info!("Insert problem a successfully.");
     response.render(Res::success());
     Ok(())
   }
