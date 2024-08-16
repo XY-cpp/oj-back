@@ -1,8 +1,9 @@
+use rbatis::impl_select;
 use rbatis::{crud, rbdc::datetime::DateTime};
 use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::api::front::Res;
 use crate::utils::authority::{check_authority, Authority, Jwt};
@@ -18,6 +19,7 @@ pub fn init_router() -> Router {
     .push(Router::with_path("tokenlogin").get(tokenlogin))
     .push(Router::with_path("update").post(update))
     .push(Router::with_path("query").post(query))
+    .push(Router::with_path("querylist").post(query_list))
     .push(Router::with_path("delete").post(delete))
 }
 
@@ -299,9 +301,9 @@ async fn update(request: &mut Request, response: &mut Response) {
     if let Some(password) = user.password {
       new_user.password = Some(password);
     }
-    if let Some(join_time) = user.join_time {
-      new_user.join_time = Some(join_time);
-    }
+    // if let Some(join_time) = user.join_time {
+    //   new_user.join_time = Some(join_time);
+    // }
     if let Some(authority) = user.auth {
       if new_user.auth.clone().unwrap() < authority {
         return generate_error!(
@@ -327,7 +329,7 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// # 前端请求格式
 /// ```json5
 /// {
-///   "uid": [num], //要查询的用户id
+///   "uid": 1, //要查询的用户id
 /// }
 /// ```
 ///
@@ -367,6 +369,64 @@ async fn query(request: &mut Request, response: &mut Response) {
       tracing::info!("Query user {} successfully.", &dbres[0].uid.unwrap());
       response.render(Res::success_data(json!(&dbres[0])));
     }
+    Ok(())
+  }
+  handle_error!(operation(request, response), response);
+}
+
+/// 用户分页查询
+///
+/// # 前端请求地址
+/// `/user/query/list`
+///
+/// # 前端请求格式
+/// ```json5
+/// {
+///   page_no: 1, // 页号
+///   page_size: 10, // 页长
+/// }
+/// ```
+///
+/// # 后端响应格式
+///
+/// - 成功
+/// ```json5
+/// {
+///   "status": "success",
+///   "data": [
+///     "...", //user的全部信息
+///   ]
+/// }
+/// ```
+///
+/// - 失败
+/// ``` json5
+/// {
+///   "status": "error",
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
+/// }
+/// ```
+///
+#[handler]
+async fn query_list(request: &mut Request, response: &mut Response) {
+  impl_select!(User{select_by_range(start:i64, end:i64)=>"`order by uid asc limit #{start}, #{end}`"});
+  async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
+    tracing::info!("Received a post request.",);
+    let info = request.parse_json::<Value>().await?;
+    let page_no = info["page_no"].as_i64();
+    let page_size = info["page_size"].as_i64();
+    if page_no.is_none() || page_size.is_none() {
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
+    }
+    let dbres = User::select_by_range(
+      &db.clone(),
+      (page_no.unwrap() - 1) * page_size.unwrap() + 1,
+      page_no.unwrap() * page_size.unwrap(),
+    )
+    .await?;
+    tracing::info!("Query {} user(s) successfully.", dbres.len());
+    response.render(Res::success_data(json!(dbres)));
     Ok(())
   }
   handle_error!(operation(request, response), response);
