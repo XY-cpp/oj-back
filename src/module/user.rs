@@ -1,5 +1,5 @@
-use rbatis::impl_select;
 use rbatis::{crud, rbdc::datetime::DateTime};
+use rbatis::{impl_select_page, IPage, IPageRequest, PageRequest};
 use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
@@ -377,7 +377,7 @@ async fn query(request: &mut Request, response: &mut Response) {
 /// 用户分页查询
 ///
 /// # 前端请求地址
-/// `/user/query/list`
+/// `/user/querylist`
 ///
 /// # 前端请求格式
 /// ```json5
@@ -394,7 +394,15 @@ async fn query(request: &mut Request, response: &mut Response) {
 /// {
 ///   "status": "success",
 ///   "data": [
-///     "...", //user的全部信息
+///     "total": 2, // 总的记录数（不是当前页的)
+///     "result": [
+///       {
+///         "..." // user1
+///       }
+///       {
+///         "..." // user2
+///       }
+///     ]
 ///   ]
 /// }
 /// ```
@@ -410,23 +418,25 @@ async fn query(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn query_list(request: &mut Request, response: &mut Response) {
-  impl_select!(User{select_by_range(start:i64, end:i64)=>"`order by uid asc limit #{start}, #{end}`"});
+  impl_select_page!(User{select_page() =>"`order by uid asc`"});
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
     let info = request.parse_json::<Value>().await?;
-    let page_no = info["page_no"].as_i64();
-    let page_size = info["page_size"].as_i64();
+    let page_no = info["page_no"].as_u64();
+    let page_size = info["page_size"].as_u64();
     if page_no.is_none() || page_size.is_none() {
       return generate_error!(Error::EmptyData, "Empty.".to_string());
     }
-    let dbres = User::select_by_range(
+    let dbres = User::select_page(
       &db.clone(),
-      (page_no.unwrap() - 1) * page_size.unwrap() + 1,
-      page_no.unwrap() * page_size.unwrap(),
+      &PageRequest::new(page_no.unwrap(), page_size.unwrap()),
     )
     .await?;
-    tracing::info!("Query {} user(s) successfully.", dbres.len());
-    response.render(Res::success_data(json!(dbres)));
+    tracing::info!("Query {} user(s) successfully.", dbres.records.len());
+    response.render(Res::success_data(json!({
+      "total": dbres.total(),
+      "result": dbres.get_records()
+    })));
     Ok(())
   }
   handle_error!(operation(request, response), response);
