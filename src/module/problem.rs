@@ -1,7 +1,7 @@
-use rbatis::crud;
+use rbatis::{crud, impl_select_page, IPage, IPageRequest, PageRequest};
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::api::front::Res;
 use crate::utils::authority::{check_authority, Authority, Jwt};
@@ -15,6 +15,7 @@ pub fn init_router() -> Router {
     .push(Router::with_path("insert").post(insert))
     .push(Router::with_path("update").post(update))
     .push(Router::with_path("query").post(query))
+    .push(Router::with_path("querylist").post(query_list))
     .push(Router::with_path("delete").post(delete))
 }
 
@@ -254,6 +255,74 @@ async fn query(request: &mut Request, response: &mut Response) {
     }
     tracing::info!("Query problem {} successfully.", &dbres[0].pid.unwrap());
     response.render(Res::success_data(json!(&dbres[0])));
+    Ok(())
+  }
+  handle_error!(operation(request, response), response);
+}
+
+/// 题目分页查询
+///
+/// # 前端请求地址
+/// `/problem/querylist`
+///
+/// # 前端请求格式
+/// ```json5
+/// {
+///   page_no: 1, // 页号
+///   page_size: 10, // 页长
+/// }
+/// ```
+///
+/// # 后端响应格式
+///
+/// - 成功
+/// ```json5
+/// {
+///   "status": "success",
+///   "data": [
+///     "total": 2, // 总的记录数（不是当前页的)
+///     "result": [
+///       {
+///         "..." // problem1
+///       },
+///       {
+///         "..." // problem2
+///       }
+///     ]
+///   ]
+/// }
+/// ```
+///
+/// - 失败
+/// ``` json5
+/// {
+///   "status": "error",
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
+/// }
+/// ```
+///
+#[handler]
+async fn query_list(request: &mut Request, response: &mut Response) {
+  impl_select_page!(Problem{select_page() =>"`order by uid asc`"});
+  async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
+    tracing::info!("Received a post request.",);
+    let info = request.parse_json::<Value>().await?;
+    let page_no = info["page_no"].as_u64();
+    let page_size = info["page_size"].as_u64();
+    if page_no.is_none() || page_size.is_none() {
+      return generate_error!(Error::EmptyData, "Empty.".to_string());
+    }
+    let dbres = Problem::select_page(
+      &db.clone(),
+      &PageRequest::new(page_no.unwrap(), page_size.unwrap()),
+    )
+    .await?;
+    tracing::info!("Query {} problem(s) successfully.", dbres.records.len());
+    response.render(Res::success_data(json!({
+      "total": dbres.total(),
+      "result": dbres.get_records()
+    })));
     Ok(())
   }
   handle_error!(operation(request, response), response);
