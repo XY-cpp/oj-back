@@ -30,9 +30,9 @@ struct Problem {
   description: Option<String>,
   /// 测试点数量
   judge_num: Option<i32>,
-  /// 时间限制, 单位：秒
-  time_limit: Option<f32>,
-  /// 内存，单位: KB
+  /// 时间限制, 单位：毫秒
+  time_limit: Option<i32>,
+  /// 内存，单位: MB
   memory_limit: Option<i32>,
   /// 上传用户
   uid: Option<i32>,
@@ -101,10 +101,10 @@ async fn insert(request: &mut Request, response: &mut Response) {
       problem.judge_num = Some(0);
     }
     if problem.time_limit.is_none() {
-      problem.time_limit = Some(1.0);
+      problem.time_limit = Some(1000);
     }
     if problem.memory_limit.is_none() {
-      problem.memory_limit = Some(128000);
+      problem.memory_limit = Some(128);
     }
     tracing::info!("{:?}", problem);
     let _ = Problem::insert(&db.clone(), &problem).await?;

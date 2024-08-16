@@ -21,7 +21,7 @@ create table problem (
   title char(64) not null,
   description text,
   judge_num int,
-  time_limit float,
+  time_limit int,
   memory_limit int,
   uid int,
   foreign key(uid) references user(uid) on delete set null
@@ -38,5 +38,5 @@ create table record (
   code text,
   submit_time datetime,
   status int,
-  run_time float
+  run_time int
 )

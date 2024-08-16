@@ -36,8 +36,8 @@ struct Record {
   submit_time: Option<DateTime>,
   /// 评测状态
   status: Option<Status>,
-  /// 运行时间
-  run_time: Option<f32>,
+  /// 运行时间, 单位：毫秒
+  run_time: Option<i32>,
 }
 crud!(Record {});
 
