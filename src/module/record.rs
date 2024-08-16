@@ -1,5 +1,5 @@
-use rbatis::crud;
 use rbatis::rbdc::DateTime;
+use rbatis::{crud, impl_select};
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -221,9 +221,16 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// `/user/query`
 ///
 /// # 前端请求格式
+///
+/// 什么都不填写返回全部记录
+///
 /// ```json5
 /// {
-///   "rid": 1, //要查询的题目id
+///   "rid": 1,
+///   "uid": 1,
+///   "pid": 1,
+///   "language": 10,
+///   "status": 10
 /// }
 /// ```
 ///
@@ -234,7 +241,12 @@ async fn update(request: &mut Request, response: &mut Response) {
 /// {
 ///   "status": "success",
 ///   "data": [
-///     "...", // record的全部信息
+///     {
+///       "..." // "record1"记录
+///     },
+///     {
+///       "..." // "record2"记录
+///     }
 ///   ]
 /// }
 /// ```
@@ -250,18 +262,35 @@ async fn update(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn query(request: &mut Request, response: &mut Response) {
+  impl_select!(Record{
+    select_by_ids(
+      rid:Option<i32>,
+      uid:Option<i32>,
+      pid:Option<i32>
+      language:Option<Language>,
+      status:Option<Status>
+    ) => "
+    `where (rid = #{rid} or #{rid} is null)`
+    ` and (uid = #{uid} or #{uid} is null)`
+    ` and (pid = #{pid} or #{pid} is null)`
+    ` and (language = #{language} or #{language} is null)`
+    ` and (status = #{status} or #{status} is null)`
+  "
+  });
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
     let record = request.parse_json::<Record>().await?;
-    if record.rid.is_none() {
-      return generate_error!(Error::EmptyData, "Empty.".to_string());
-    }
-    let dbres = Record::select_by_column(&db.clone(), "rid", &record.rid).await?;
-    if dbres.len() == 0 {
-      return generate_error!(Error::DataNotFound, record.rid.unwrap().to_string());
-    }
-    tracing::info!("Query record {} successfully", record.rid.unwrap());
-    response.render(Res::success_data(json!(&dbres[0])));
+    let dbres = Record::select_by_ids(
+      &db.clone(),
+      record.rid,
+      record.uid,
+      record.pid,
+      record.language,
+      record.status,
+    )
+    .await?;
+    tracing::info!("Query {} record(s) successfully", dbres.len());
+    response.render(Res::success_data(json!(dbres)));
     Ok(())
   }
   handle_error!(operation(request, response), response);
