@@ -149,15 +149,15 @@ async fn insert(request: &mut Request, response: &mut Response) {
 #[handler]
 async fn upload(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    // let token: String;
-    // tracing::info!("{:?}", request.headers().get("Authorization"));
-    // match request.headers().get("Authorization") {
-    //   Some(header) => token = String::from(header.to_str().unwrap()),
-    //   None => return generate_error!(Error::NoToken, "Empty.".to_string()),
-    // }
-    // if !check_authority(token.clone(), 0, Authority::User) {
-    //   return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
-    // }
+    let token: String;
+    tracing::info!("{:?}", request.headers().get("Authorization"));
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
+    }
+    if !check_authority(token.clone(), 0, Authority::User) {
+      return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
+    }
     tracing::info!("{:?}", request);
     let pid = request.form::<i32>("pid").await;
     if pid.is_none() {
@@ -168,7 +168,6 @@ async fn upload(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::EmptyData, "Empty file.".to_string());
     }
     let dest = format!("/tmp/{}.zip", pid.unwrap());
-    // let dest = format!("/tmp/1.zip");
     let path = Path::new(&dest);
     if let Err(_) = std::fs::copy(file.unwrap().path(), &path) {
       return generate_error!(Error::EmptyData, "Copy file failed".to_string());
