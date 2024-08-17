@@ -255,7 +255,6 @@ async fn update(request: &mut Request, response: &mut Response) {
       return generate_error!(Error::NoAuthority, "Empty".to_string());
     }
     let mut new_problem = dbres[0].clone();
-    tracing::error!("{:?}", new_problem);
     if let Some(title) = problem.title {
       new_problem.title = Some(title);
     }
