@@ -351,7 +351,7 @@ async fn query_list(request: &mut Request, response: &mut Response) {
       &PageRequest::new(page_no.unwrap(), page_size.unwrap()),
     )
     .await?;
-    tracing::info!("Query {} problem(s) successfully.", dbres.records.len());
+    tracing::info!("Query {} record(s) successfully.", dbres.records.len());
     response.render(Res::success_data(json!({
       "total": dbres.total(),
       "result": dbres.get_records()
