@@ -296,7 +296,7 @@ async fn query(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn query_list(request: &mut Request, response: &mut Response) {
-  impl_select_page!(Problem{select_page() =>"`order by uid asc`"});
+  impl_select_page!(Problem{select_page() =>"`order by pid asc`"});
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
     let info = request.parse_json::<Value>().await?;
