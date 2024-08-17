@@ -9,6 +9,9 @@ username = "root"
 password = "19260817"
 database = "oj"
 
+[judger]
+url = "http://127.0.0.1:8100"
+
 [auth]
 secret = "jzm19260817"
 expires = 14

@@ -10,6 +10,7 @@ lazy_static! {
 pub struct Settings {
   pub server: Server,
   pub mysql: Database,
+  pub judger: Judger,
   pub auth: Auth,
 }
 
@@ -26,6 +27,11 @@ pub struct Database {
   pub username: String,
   pub password: String,
   pub database: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Judger {
+  pub url: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

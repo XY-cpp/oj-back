@@ -1,10 +1,15 @@
+use std::path::Path;
+
 use rbatis::{crud, impl_select_page, IPage, IPageRequest, PageRequest};
+use reqwest::blocking::multipart;
+
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::api::front::Res;
 use crate::utils::authority::{check_authority, Authority, Jwt};
+use crate::utils::config::config;
 use crate::utils::db::db;
 use crate::utils::error::Error;
 use crate::{generate_error, handle_error};
@@ -14,6 +19,7 @@ pub fn init_router() -> Router {
   Router::with_path("problem")
     .push(Router::with_path("insert").post(insert))
     .push(Router::with_path("update").post(update))
+    .push(Router::with_path("upload").post(upload))
     .push(Router::with_path("query").post(query))
     .push(Router::with_path("querylist").post(query_list))
     .push(Router::with_path("delete").post(delete))
@@ -105,6 +111,86 @@ async fn insert(request: &mut Request, response: &mut Response) {
     tracing::info!("Insert problem a successfully.");
     response.render(Res::success());
     Ok(())
+  }
+  handle_error!(operation(request, response), response);
+}
+
+/// 题目数据上传
+///
+/// # 前端请求地址
+///
+/// `/problem/upload`
+///
+/// # 前端请求格式
+///
+/// 使用 multipart/form-data
+/// "pid" = 1
+/// “file” = "..."
+///
+///
+/// # 后端响应格式
+///
+/// - 成功
+/// ```json5
+/// {
+///   "status": "success"
+/// }
+/// ```
+///
+/// - 失败
+/// ``` json5
+/// {
+///   "status": "error",
+///   "message": "...", // 错误类型见error.rs
+///   "data": "..." // 具体出错信息
+/// }
+/// ```
+///
+#[handler]
+async fn upload(request: &mut Request, response: &mut Response) {
+  async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
+    // let token: String;
+    // tracing::info!("{:?}", request.headers().get("Authorization"));
+    // match request.headers().get("Authorization") {
+    //   Some(header) => token = String::from(header.to_str().unwrap()),
+    //   None => return generate_error!(Error::NoToken, "Empty.".to_string()),
+    // }
+    // if !check_authority(token.clone(), 0, Authority::User) {
+    //   return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
+    // }
+    tracing::info!("{:?}", request);
+    let pid = request.form::<i32>("pid").await;
+    if pid.is_none() {
+      return generate_error!(Error::EmptyData, "Empty pid.".to_string());
+    }
+    let file = request.file("file").await;
+    if let None = file {
+      return generate_error!(Error::EmptyData, "Empty file.".to_string());
+    }
+    let dest = format!("/tmp/{}.zip", pid.unwrap());
+    // let dest = format!("/tmp/1.zip");
+    let path = Path::new(&dest);
+    if let Err(_) = std::fs::copy(file.unwrap().path(), &path) {
+      return generate_error!(Error::EmptyData, "Copy file failed".to_string());
+    }
+    let form = multipart::Form::new().file("file", &dest);
+    if form.is_err() {
+      return generate_error!(Error::DataNotFound, "File not found".to_string());
+    }
+    let client = reqwest::blocking::Client::new();
+    match client
+      .post(&config.judger.url)
+      .multipart(form.unwrap())
+      .send()
+    {
+      Ok(_) => {
+        response.render(Res::success());
+        return Ok(());
+      }
+      Err(_) => {
+        return generate_error!(Error::DataNotFound, "Send failed".to_string());
+      }
+    }
   }
   handle_error!(operation(request, response), response);
 }
