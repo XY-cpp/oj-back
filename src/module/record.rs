@@ -122,7 +122,7 @@ async fn insert(request: &mut Request, response: &mut Response) {
       Some(header) => token = String::from(header.to_str().unwrap()),
       None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
-    if !check_authority(token, 0, Authority::Judger) {
+    if !check_authority(token, 0, Authority::User) {
       return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let record = request.parse_json::<Record>().await?;
