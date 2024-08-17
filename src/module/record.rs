@@ -301,6 +301,7 @@ async fn query(request: &mut Request, response: &mut Response) {
     ` and (pid = #{pid} or #{pid} is null)`
     ` and (language = #{language} or #{language} is null)`
     ` and (status = #{status} or #{status} is null)`
+    `order by rid desc;`
   "
   });
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
@@ -366,7 +367,7 @@ async fn query(request: &mut Request, response: &mut Response) {
 ///
 #[handler]
 async fn query_list(request: &mut Request, response: &mut Response) {
-  impl_select_page!(Record{select_page() =>"`order by rid asc`"});
+  impl_select_page!(Record{select_page() =>"`order by rid desc`"});
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
     let info = request.parse_json::<Value>().await?;
