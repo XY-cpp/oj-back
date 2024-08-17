@@ -1,5 +1,7 @@
+use crate::utils::config::config;
 use rbatis::rbdc::DateTime;
 use rbatis::{crud, impl_select, impl_select_page, IPage, IPageRequest, PageRequest};
+use reqwest::Client;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -130,10 +132,37 @@ async fn insert(request: &mut Request, response: &mut Response) {
     let mut record = record;
     record.submit_time = Some(DateTime::now());
     record.status = Some(Status::Waiting);
-    Record::insert(&db.clone(), &record).await?;
+    record.rid = Some(
+      Record::insert(&db.clone(), &record)
+        .await?
+        .last_insert_id
+        .as_i64()
+        .unwrap() as i32,
+    );
     tracing::info!("Insert a record successfully");
     response.render(Res::success());
-    Ok(())
+
+    let client = Client::new();
+    match client
+      .post(&config.judger.url)
+      .json(&json!({
+        "pid": record.pid,
+        "rid": record.rid,
+        "code": record.code,
+        "language": record.language,
+        "opt": []
+      }))
+      .send()
+      .await
+    {
+      Ok(_) => {
+        response.render(Res::success());
+        return Ok(());
+      }
+      Err(_) => {
+        return generate_error!(Error::DataNotFound, "Send failed".to_string());
+      }
+    }
   }
   handle_error!(operation(request, response), response);
 }
