@@ -114,15 +114,13 @@ enum Language {
 async fn insert(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    match request.cookie("token") {
-      Some(token) => {
-        if !check_authority(token.value().to_string(), 0, Authority::Judger) {
-          return generate_error!(Error::NoToken, "Empty.".to_string());
-        }
-      }
-      None => {
-        return generate_error!(Error::NoToken, "Empty.".to_string());
-      }
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
+    }
+    if !check_authority(token, 0, Authority::Judger) {
+      return generate_error!(Error::NoToken, "Empty.".to_string());
     }
     let record = request.parse_json::<Record>().await?;
     if record.uid.is_none() || record.pid.is_none() || record.language.is_none() {
@@ -179,8 +177,10 @@ async fn insert(request: &mut Request, response: &mut Response) {
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    if let None = request.cookie("token") {
-      return generate_error!(Error::NoToken, "Empty.".to_string());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
     let record = request.parse_json::<Record>().await?;
     if record.rid.is_none() {
@@ -193,11 +193,7 @@ async fn update(request: &mut Request, response: &mut Response) {
         format!("Record {}.", record.rid.unwrap()).to_string()
       );
     }
-    if !check_authority(
-      request.cookie("token").unwrap().value().to_string(),
-      0,
-      Authority::Judger,
-    ) {
+    if !check_authority(token, 0, Authority::Judger) {
       return generate_error!(Error::NoAuthority, "Empty.".to_string());
     }
     let mut new_record = dbres[0].clone();

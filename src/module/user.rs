@@ -1,6 +1,5 @@
 use rbatis::{crud, rbdc::datetime::DateTime};
 use rbatis::{impl_select_page, IPage, IPageRequest, PageRequest};
-use salvo::http::cookie::Cookie;
 use salvo::{handler, Request, Response, Router};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -156,15 +155,13 @@ async fn login(request: &mut Request, response: &mut Response) {
       );
     }
     let user = dbres[0].clone();
-    let (token, exp) = Jwt::encode(user.uid.unwrap(), user.auth.clone().unwrap())?;
+    let (token, _) = Jwt::encode(user.uid.unwrap(), user.auth.clone().unwrap())?;
     tracing::info!(
       "User {} login successfully with token {}.",
       user.uid.unwrap(),
       &token
     );
-    let mut cookie = Cookie::new("token", token);
-    cookie.set_expires(exp);
-    response.add_cookie(cookie);
+    let _ = response.add_header("Authorization", token, true);
     response.render(Res::success_data(json!(&user)));
     Ok(())
   }
@@ -206,27 +203,23 @@ async fn login(request: &mut Request, response: &mut Response) {
 async fn tokenlogin(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request",);
-    match request.cookie("token") {
-      Some(cookie) => match Jwt::decode(cookie.value().to_string()) {
-        Ok((uid, _)) => {
-          let dbres = User::select_by_column(&db.clone(), "uid", uid).await?;
-          if dbres.len() == 0 {
-            return generate_error!(Error::DataNotFound, format!("User {}.", uid));
-          }
-          tracing::info!(
-            "User {} login successfully with token {}.",
-            uid,
-            cookie.value().to_string()
-          );
-          response.render(Res::success_data(json!(&dbres[0])));
-          return Ok(());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
+    }
+    match Jwt::decode(token.clone()) {
+      Ok((uid, _)) => {
+        let dbres = User::select_by_column(&db.clone(), "uid", uid).await?;
+        if dbres.len() == 0 {
+          return generate_error!(Error::DataNotFound, format!("User {}.", uid));
         }
-        Err(_) => {
-          return generate_error!(Error::NoToken, "Token is wrong or expired.".to_string());
-        }
-      },
-      None => {
-        return generate_error!(Error::NoToken, "Empty.".to_string());
+        tracing::info!("User {} login successfully with token {}.", uid, token);
+        response.render(Res::success_data(json!(&dbres[0])));
+        return Ok(());
+      }
+      Err(_) => {
+        return generate_error!(Error::NoToken, "Token is wrong or empty".to_string());
       }
     }
   }
@@ -270,18 +263,16 @@ async fn tokenlogin(request: &mut Request, response: &mut Response) {
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    if let None = request.cookie("token") {
-      return generate_error!(Error::NoToken, "Empty.".to_string());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
       return generate_error!(Error::EmptyData, "Uid not found.".to_string());
     }
-    if !check_authority(
-      request.cookie("token").unwrap().value().to_string(),
-      user.uid.unwrap(),
-      Authority::Admin,
-    ) {
+    if !check_authority(token, user.uid.unwrap(), Authority::Admin) {
       return generate_error!(
         Error::NoAuthority,
         format!("User {}.", user.uid.unwrap()).to_string()
@@ -313,7 +304,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       }
       new_user.auth = Some(authority);
     }
-    let _ = User::update_by_column(&db.clone(), &new_user, "uid").await?;
+    User::update_by_column(&db.clone(), &new_user, "uid").await?;
     tracing::info!("Update user {} successfully.", user.uid.unwrap());
     response.render(Res::success());
     Ok(())
@@ -475,24 +466,22 @@ async fn query_list(request: &mut Request, response: &mut Response) {
 async fn delete(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    if let None = request.cookie("token") {
-      return generate_error!(Error::NoToken, "Empty.".to_string());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
     let user = request.parse_json::<User>().await?;
     if user.uid.is_none() {
       return generate_error!(Error::EmptyData, "".to_string());
     }
-    if !check_authority(
-      request.cookie("token").unwrap().value().to_string(),
-      user.uid.unwrap(),
-      Authority::Admin,
-    ) {
+    if !check_authority(token, user.uid.unwrap(), Authority::Admin) {
       return generate_error!(
         Error::NoAuthority,
         format!("User {}.", user.uid.unwrap()).to_string()
       );
     }
-    let _ = User::delete_by_column(&db.clone(), "uid", &user.uid).await?;
+    User::delete_by_column(&db.clone(), "uid", &user.uid).await?;
     tracing::info!("Delete user {} successfully.", &user.uid.unwrap());
     response.render(Res::success());
     Ok(())

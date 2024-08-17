@@ -76,27 +76,21 @@ crud!(Problem {});
 #[handler]
 async fn insert(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
-    tracing::info!("Received a post request.",);
-    match request.cookie("token") {
-      Some(token) => {
-        if !check_authority(token.value().to_string(), 0, Authority::User) {
-          return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
-        }
-      }
-      None => {
-        return generate_error!(Error::NoToken, "Empty.".to_string());
-      }
+    let token: String;
+    tracing::info!("{:?}", request.headers().get("Authorization"));
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
+    }
+    if !check_authority(token.clone(), 0, Authority::User) {
+      return generate_error!(Error::NoAuthority, format!("Empty.").to_string());
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.title.is_none() {
       return generate_error!(Error::EmptyData, "Empty title.".to_string());
     }
     let mut problem = problem;
-    problem.uid = Some(
-      Jwt::decode(request.cookie("token").unwrap().value().to_string())
-        .unwrap()
-        .0,
-    );
+    problem.uid = Some(Jwt::decode(token).unwrap().0);
     if problem.judge_num.is_none() {
       problem.judge_num = Some(0);
     }
@@ -152,8 +146,10 @@ async fn insert(request: &mut Request, response: &mut Response) {
 async fn update(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    if let None = request.cookie("token") {
-      return generate_error!(Error::NoToken, "Empty.".to_string());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
@@ -170,11 +166,7 @@ async fn update(request: &mut Request, response: &mut Response) {
       Some(uid) => uid,
       None => 0,
     };
-    if !check_authority(
-      request.cookie("token").unwrap().value().to_string(),
-      uid,
-      Authority::Admin,
-    ) {
+    if !check_authority(token, uid, Authority::Admin) {
       return generate_error!(Error::NoAuthority, "Empty".to_string());
     }
     let mut new_problem = dbres[0].clone();
@@ -361,8 +353,10 @@ async fn query_list(request: &mut Request, response: &mut Response) {
 async fn delete(request: &mut Request, response: &mut Response) {
   async fn operation(request: &mut Request, response: &mut Response) -> Result<(), Error> {
     tracing::info!("Received a post request.",);
-    if let None = request.cookie("token") {
-      return generate_error!(Error::NoToken, "Empty.".to_string());
+    let token: String;
+    match request.headers().get("Authorization") {
+      Some(header) => token = String::from(header.to_str().unwrap()),
+      None => return generate_error!(Error::NoToken, "Empty.".to_string()),
     }
     let problem = request.parse_json::<Problem>().await?;
     if problem.pid.is_none() {
@@ -379,11 +373,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
       Some(uid) => uid,
       None => 0,
     };
-    if !check_authority(
-      request.cookie("token").unwrap().value().to_string(),
-      uid,
-      Authority::Admin,
-    ) {
+    if !check_authority(token, uid, Authority::Admin) {
       return generate_error!(
         Error::NoAuthority,
         format!(
@@ -393,7 +383,7 @@ async fn delete(request: &mut Request, response: &mut Response) {
         .to_string()
       );
     }
-    let _ = Problem::delete_by_column(&db.clone(), "pid", problem.pid).await?;
+    Problem::delete_by_column(&db.clone(), "pid", problem.pid).await?;
     tracing::info!("Delete problem {} successfully", problem.pid.unwrap());
     response.render(Res::success());
     Ok(())
