@@ -13,7 +13,14 @@ create table user (
 );
 
 INSERT INTO user (avatar, account, password, join_time, auth)
-VALUES ('null', 'admin', 'jzm19260817', CURDATE(), 30);
+VALUES ('https://s21.ax1x.com/2024/08/17/pACbPKS.jpg', 'admin', 'jzm19260817', CURDATE(), 30);
+
+INSERT INTO user (avatar, account, password, join_time, auth)
+VALUES ('https://s21.ax1x.com/2024/08/17/pACbPKS.jpg', 'judger', 'jzm19260817', CURDATE(), 20);
+
+INSERT INTO user (avatar, account, password, join_time, auth)
+VALUES ('https://s21.ax1x.com/2024/08/17/pACbsIA.jpg', 'user', 'jzm19260817', CURDATE(), 10);
+
 
 -- 题目表
 create table problem (
